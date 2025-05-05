@@ -7,38 +7,34 @@
 
 #include "keypad.h"
 
-const uint8_t keymap[4][4] = {
-	{'1', '2', '3', 'A'},
-	{'4', '5', '6', 'B'},
-	{'7', '8', '9', 'C'},
-	{'0', '*', '#', 'D'}
-};
-
-void KEYPAD_Init(void){
-	// Configuro filas como salidas (D0..D3)
-	DDRD |= 0x0F;
-	// Configuro columnas como entradas (D4..D7) con pull-up
-	DDRD &= ~(0xF0);
-	PORTD |= 0xF0;
+void KEYPAD_Init(void) {
+    DDRD |= 0x0F;       // Filas (D0-D3) como salidas
+    DDRD &= ~(0xF0);    // Columnas (D4-D7) como entradas
+    PORTD |= 0xF0;      // Activar pull-up en columnas
 }
 
 uint8_t KEYPAD_Scan(uint8_t *key) {
-	
-	for (uint8_t row = 0; row < 4; row++) {
-		// Pongo todas las filas en 1
-		PORTD |= 0x0F;
-		// Bajo solo la fila actual
-		PORTD &= ~(1 << row);
-		_delay_ms(20); // Pequeño delay para que se estabilice
+    const uint8_t keymap[4][4] = {
+        {'1', '2', '3', 'A'},
+        {'4', '5', '6', 'B'},
+        {'7', '8', '9', 'C'},
+        {'*', '0', '#', 'D'}
+    };
 
-		for (uint8_t col = 0; col < 4; col++) {
-			if (!(PIND & (1 << (col + 4)))) { // Si columna esta en 0 (tecla presionada)
-				// Devuelvo el caracter correspondiente
-				*key = keymap[row][col];
-				return 1; // Se detecto tecla
-			}
-		}
-	}
+    for (uint8_t row = 0; row < 4; row++) {
+        PORTD |= 0x0F;          // Poner todas las filas en 1
+        PORTD &= ~(1 << row);   // Bajar la fila actual a 0
+        _delay_ms(5);           // Delay para estabilizar
 
-	return 0; // No se presionó ninguna tecla
+        for (uint8_t col = 0; col < 4; col++) {
+            if (!(PIND & (1 << (col + 4)))) {  // Si la columna estÃ¡ en 0
+                *key = keymap[row][col];
+                _delay_ms(20);      // Delay para debounce
+                if (!(PIND & (1 << (col + 4)))) {  // Verificar nuevamente
+                    return 1;       // Tecla confirmada
+                }
+            }
+        }
+    }
+    return 0;  // No se detectÃ³ tecla
 }

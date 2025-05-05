@@ -18,7 +18,6 @@ const char* diccionario[] = {
 
 const uint8_t ARR_SIZE = 25;
 
-
 int main(void) {
 	// init 
 	Timer0_Init(1000);   // Timer0: interrupci�n
@@ -28,12 +27,13 @@ int main(void) {
 	LCDcursorOnBlink();
 	
 	KEYPAD_Init();
-	MEF_Inicializar();     
+	//MEF_Inicializar();     
 
 	while (1) {
 		if (flag_tick) {
 			flag_tick = 0;
-			MEF_Actualizar();
+			//MEF_Actualizar();
 		}
 	}
+	
 }

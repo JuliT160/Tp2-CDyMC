@@ -1,10 +1,17 @@
-#ifndef KEYPAD_H
-#define KEYPAD_H
+/*
+ * keypad.h
+ *
+ * Created: 5/5/2025 20:31:17
+ *  Author: julit
+ */ 
 
-#include "main.h"
 
-void KEYPAD_Init(void);
-uint8_t KEYPAD_Scan(uint8_t *key);		// Prototipo para el metodo KEYPAD_Scan
-
-
-#endif
+ #ifndef TECLADO4X4_H_
+ #define TECLADO4X4_H_
+ 
+ #include "main.h"
+ 
+ void KEYPAD_Init();
+ uint8_t KEYPAD_Scan(uint8_t *key);
+ 
+ #endif /* TECLADO4X4_H_ */
