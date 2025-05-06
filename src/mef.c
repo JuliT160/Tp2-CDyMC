@@ -18,7 +18,7 @@ static char buffer[4] = {0}; // para ascii (3 dígitos + null)
 //static char letra_actual;
 static const char* palabra;
 static uint8_t buffer_index = 0;
-
+static uint8_t enPartida = 0;
 static uint16_t tiempoFinal = 0;
 
 typedef enum {
@@ -39,6 +39,7 @@ void MEF_Inicializar(){
 	errores = 0;
 	posicion = 0;
 	buffer_index = 0;
+	enPartida = 1;
 	Timer0_ResetContador();
 	LCDclr();
 	LCDGotoXY(0,0);
@@ -86,38 +87,16 @@ static void mostrarCaracterEnPantalla(void) {
 	buffer_index = 0;
 }
 
-static void limpiarLineaInferior(void) {
+static void limpiarLineaInferior() {
 	LCDGotoXY(0,1);
 	LCDstring((uint8_t*)"     ", 5);
 	buffer_index = 0;
-	LCDGotoXY(posicion + 1, 0);
-}
-
-static void mostrarMensajeDerrota(void) {
-	LCDclr();
-	LCDGotoXY(0,0);
-	LCDstring((uint8_t*)"Derrota", 7);
-	Timer0_ResetContador();
-}
-
-static void mostrarMensajeVictoria(void) {
-	LCDclr();
-	LCDGotoXY(0,0);
-	LCDstring((uint8_t*)"Victoria", 8);
-	// Se podria mostrar el tiempo final
-	Timer0_ResetContador();
+	LCDGotoXY(posicion, 0);
+	
 }
 
 static uint8_t palabraCompleta(void) {
 	return (posicion >= PALABRA_LARGO - 1);
-}
-
-static void avanzarPosicion(void) {
-	posicion++;
-}
-
-static void incrementarErrores(void) {
-	errores++;
 }
 
 void MEF_Actualizar() {
@@ -141,6 +120,10 @@ void MEF_Actualizar() {
 			break;	
 		case ESPERAR_CARACTER:
 			if (KEYPAD_Scan((uint8_t*)&tecla)) {
+				LCDGotoXY(0,1);
+				LCDstring((uint8_t*)"     ", 5);  // Limpiar línea
+				LCDGotoXY(0,1);
+				LCDsendChar(tecla);  // Mostrar tecla detectada
 				if (tecla == '#') {
 					estado_actual = VALIDAR_CARACTER;
 				} else if (esDigito(tecla)) {
@@ -155,11 +138,11 @@ void MEF_Actualizar() {
 					tiempoFinal = Timer0_LeerContador();
 					estado_actual = VICTORIA;
 				} else {
-					avanzarPosicion();
+					posicion++;
 					estado_actual = ESPERAR_CARACTER;
 				}
 			} else {
-				incrementarErrores();
+				errores++;
 				if (errores >= MAX_ERRORES) {
 					estado_actual = DERROTA;
 				} else {
@@ -175,16 +158,26 @@ void MEF_Actualizar() {
 			}
 			break;
 		case DERROTA:
-			if (Timer0_LeerContador() == 0) {  // Solo mostrar el mensaje al entrar al estado
-				mostrarMensajeDerrota();
+			if (/*Timer0_LeerContador() == 0*/ enPartida) {  // Solo mostrar el mensaje al entrar al estado
+				enPartida = 0;
+				LCDclr();
+				LCDGotoXY(0,0);
+				LCDstring((uint8_t*)"Derrota", 7);
+				Timer0_ResetContador();
 			}
-			if (Timer0_LeerContador() >= 5000) {
+			if (Timer0_LeerContador() >= 500) {
 				MEF_Inicializar();
 			}
 			break;
 		case VICTORIA:
-			mostrarMensajeVictoria();
-			if (Timer0_LeerContador() >= 5000) {
+			if (/*Timer0_LeerContador() == 0*/ enPartida) {  // Solo mostrar el mensaje al entrar al estado
+				enPartida = 0;
+				LCDclr();
+				LCDGotoXY(0,0);
+				LCDstring((uint8_t*)"Victoria", 8);
+				Timer0_ResetContador();
+			}
+			if (Timer0_LeerContador() >= 500) {
 				MEF_Inicializar();
 			}
 			break;
