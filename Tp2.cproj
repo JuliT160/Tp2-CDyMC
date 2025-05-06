@@ -121,18 +121,6 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="src\keypad.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\keypad.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\keypad2.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\keypad2.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="src\main.h">
       <SubType>compile</SubType>
     </Compile>
@@ -151,10 +139,10 @@
     <Compile Include="src\mef.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\teclado4x4.c">
+    <Compile Include="src\keypad.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\teclado4x4.h">
+    <Compile Include="src\keypad.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\timer0.c">

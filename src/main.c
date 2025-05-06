@@ -27,12 +27,12 @@ int main(void) {
 	LCDcursorOnBlink();
 	
 	KEYPAD_Init();
-	//MEF_Inicializar();     
+	MEF_Inicializar();     
 
 	while (1) {
 		if (flag_tick) {
 			flag_tick = 0;
-			//MEF_Actualizar();
+			MEF_Actualizar();
 		}
 	}
 	
