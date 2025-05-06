@@ -1,40 +1,55 @@
-/*
- * CFile1.c
- *
- * Created: 01/05/2025 10:28:03
- *  Author: julit
- */ 
-
+/* keypad.c */
 #include "keypad.h"
+#include <util/delay.h>
+
+/* Mapeo físico: filas en PB4, PB3, PB0, PD7; columnas en PD3, PD5, PD4, PD2 */
+static const uint8_t row_ddr_masks[4] = { (1<<PB4), (1<<PB3), (1<<PB0), (1<<PD7) };
+static volatile uint8_t * const row_ddr_ports[4] = { &DDRB, &DDRB, &DDRB, &DDRD };
+static volatile uint8_t * const row_port_ports[4] = { &PORTB, &PORTB, &PORTB, &PORTD };
+
+static const uint8_t col_ddr_masks[4] = { (1<<PD3), (1<<PD5), (1<<PD4), (1<<PD2) };
+static volatile uint8_t * const col_ddr_ports[4] = { &DDRD, &DDRD, &DDRD, &DDRD };
+static volatile uint8_t * const col_port_ports[4] = { &PORTD, &PORTD, &PORTD, &PORTD };
+static volatile uint8_t * const col_pin_ports[4]  = { &PIND,  &PIND,  &PIND,  &PIND  };
+
+static const char keymap[4][4] = {
+	{'1','2','3','A'},
+	{'4','5','6','B'},
+	{'7','8','9','C'},
+	{'*','0','#','D'}
+};
 
 void KEYPAD_Init(void) {
-    DDRD |= 0x0F;       // Filas (D0-D3) como salidas
-    DDRD &= ~(0xF0);    // Columnas (D4-D7) como entradas
-    PORTD |= 0xF0;      // Activar pull-up en columnas
+	// Filas = salidas, nivel alto
+	for (uint8_t i = 0; i < 4; i++) {
+		*row_ddr_ports[i]  |=  row_ddr_masks[i];
+		*row_port_ports[i] |=  row_ddr_masks[i];
+	}
+	// Columnas = entradas con pull‑up
+	for (uint8_t i = 0; i < 4; i++) {
+		*col_ddr_ports[i]  &= ~col_ddr_masks[i];
+		*col_port_ports[i] |=  col_ddr_masks[i];
+	}
 }
 
 uint8_t KEYPAD_Scan(uint8_t *key) {
-    const uint8_t keymap[4][4] = {
-        {'1', '2', '3', 'A'},
-        {'4', '5', '6', 'B'},
-        {'7', '8', '9', 'C'},
-        {'*', '0', '#', 'D'}
-    };
-
-    for (uint8_t row = 0; row < 4; row++) {
-        PORTD |= 0x0F;          // Poner todas las filas en 1
-        PORTD &= ~(1 << row);   // Bajar la fila actual a 0
-        _delay_ms(5);           // Delay para estabilizar
-
-        for (uint8_t col = 0; col < 4; col++) {
-            if (!(PIND & (1 << (col + 4)))) {  // Si la columna está en 0
-                *key = keymap[row][col];
-                _delay_ms(20);      // Delay para debounce
-                if (!(PIND & (1 << (col + 4)))) {  // Verificar nuevamente
-                    return 1;       // Tecla confirmada
-                }
-            }
-        }
-    }
-    return 0;  // No se detectó tecla
+	for (uint8_t row = 0; row < 4; row++) {
+		// Poner todas las filas en 1
+		for (uint8_t i = 0; i < 4; i++)
+		*row_port_ports[i] |= row_ddr_masks[i];
+		// Bajar la fila activa
+		*row_port_ports[row] &= ~row_ddr_masks[row];
+		_delay_ms(5);
+		// Leer columnas
+		for (uint8_t col = 0; col < 4; col++) {
+			if (!(*col_pin_ports[col] & col_ddr_masks[col])) {
+				*key = keymap[row][col];
+				_delay_ms(20);
+				// rebote
+				if (!(*col_pin_ports[col] & col_ddr_masks[col]))
+				return 1;
+			}
+		}
+	}
+	return 0;
 }

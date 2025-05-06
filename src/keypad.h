@@ -6,12 +6,14 @@
  */ 
 
 
- #ifndef TECLADO4X4_H_
- #define TECLADO4X4_H_
- 
- #include "main.h"
- 
- void KEYPAD_Init();
- uint8_t KEYPAD_Scan(uint8_t *key);
- 
- #endif /* TECLADO4X4_H_ */
+/* keypad.h */
+#ifndef KEYPAD_H_
+#define KEYPAD_H_
+
+#include <stdint.h>
+#include "main.h"
+
+void KEYPAD_Init(void);
+uint8_t KEYPAD_Scan(uint8_t *key);
+
+#endif

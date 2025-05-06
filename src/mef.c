@@ -1,80 +1,195 @@
+/*
+ * mef.c
+ *
+ * Created: 01/05/2025 21:01:18
+ *  Author: julit
+ */ 
 #include "mef.h"
-#include "main.h"
 
-// Estados de la MEF
-typedef enum {
-    ESTADO_INICIAL,
-    ESTADO_ESPERANDO_PALABRA,
-    ESTADO_INGRESANDO_PALABRA,
-    ESTADO_PALABRA_CORRECTA,
-    ESTADO_PALABRA_INCORRECTA
-} estado_t;
+#define MAX_ERRORES 3
+#define PALABRA_LARGO 5
 
-extern const char* diccionario[];
+extern const char* diccionario[];		// Extern declara una variable que se encuentra en otro archivo
 extern const uint8_t ARR_SIZE;
 
-// Variables globales de la MEF
-static estado_t estado_actual;
-static uint8_t palabra_actual;
-static uint8_t indice_letra;
-static char palabra_ingresada[6]; // 5 letras + '\0'
+static uint8_t errores = 0;
+static uint8_t posicion = 0;
+static char buffer[4] = {0}; // para ascii (3 dígitos + null)
+//static char letra_actual;
+static const char* palabra;
+static uint8_t buffer_index = 0;
 
-void MEF_Inicializar(void) {
-    estado_actual = ESTADO_INICIAL;
-    palabra_actual = 0;
-    indice_letra = 0;
-    LCDclr();
-    LCDstring((uint8_t*)"Presione *", 10);
+static uint16_t tiempoFinal = 0;
+
+typedef enum {
+	INICIO,
+	MOSTRAR_CLAVE,
+	ESPERAR_CARACTER,
+	VALIDAR_CARACTER,
+	ERROR,
+	DERROTA,
+	VICTORIA
+} estado_t;
+
+static estado_t estado_actual;
+
+void MEF_Inicializar(){
+	// Declaracion inicial
+	estado_actual = INICIO;
+	errores = 0;
+	posicion = 0;
+	buffer_index = 0;
+	Timer0_ResetContador();
+	LCDclr();
+	LCDGotoXY(0,0);
+	LCDstring((uint8_t*)"RECORDAR", 8);
+	LCDGotoXY(0,1);
+	LCDstring((uint8_t*)"Presiona *", 10);
 }
 
-void MEF_Actualizar(void) {
-    uint8_t tecla;
-    if (!KEYPAD_Scan(&tecla)) return; // No se presionó ninguna tecla
-    
-    switch (estado_actual) {
-        case ESTADO_INICIAL:
-            if (tecla == '*') {
-                estado_actual = ESTADO_ESPERANDO_PALABRA;
-                LCDclr();
-                LCDstring((uint8_t*)diccionario[palabra_actual], 5);
-            }
-            break;
-            
-        case ESTADO_ESPERANDO_PALABRA:
-            if (tecla == '*') {
-                estado_actual = ESTADO_INGRESANDO_PALABRA;
-                indice_letra = 0;
-                LCDclr();
-                LCDstring((uint8_t*)"Ingrese:", 8);
-            }
-            break;
-            
-        case ESTADO_INGRESANDO_PALABRA:
-            if (tecla == '#') {
-                palabra_ingresada[indice_letra] = '\0';
-                if (strcmp(palabra_ingresada, diccionario[palabra_actual]) == 0) {
-                    estado_actual = ESTADO_PALABRA_CORRECTA;
-                    LCDclr();
-                    LCDstring((uint8_t*)"Correcto!", 9);
-                } else {
-                    estado_actual = ESTADO_PALABRA_INCORRECTA;
-                    LCDclr();
-                    LCDstring((uint8_t*)"Incorrecto!", 11);
-                }
-            } else if (tecla != '*' && indice_letra < 5) {
-                palabra_ingresada[indice_letra++] = tecla;
-                LCDsendChar(tecla);
-            }
-            break;
-            
-        case ESTADO_PALABRA_CORRECTA:
-        case ESTADO_PALABRA_INCORRECTA:
-            if (tecla == '*') {
-                palabra_actual = (palabra_actual + 1) % ARR_SIZE;
-                estado_actual = ESTADO_ESPERANDO_PALABRA;
-                LCDclr();
-                LCDstring((uint8_t*)diccionario[palabra_actual], 5);
-            }
-            break;
-    }
+static void devolverPalabra(){
+	// Iniciar semilla
+	srand(Timer0_LeerContador());
+	
+	//Obtener pocicion aleatoria, el diccionario y el arrsize deben estar declarados
+	uint8_t i = rand() % ARR_SIZE;
+	
+	palabra = diccionario[i];		// Guardo la palabra elegida
+}
+
+static void mostrarPalabra(){
+	LCDclr();
+	LCDGotoXY(0,0);
+	LCDstring((uint8_t*)palabra, PALABRA_LARGO);
+}
+
+static uint8_t esDigito(char c) {
+	return (c >= '0' && c <= '9');
+}
+
+static void agregarAlBuffer(char c) {
+	if (buffer_index < 3) {
+		buffer[buffer_index++] = c;
+	}
+}
+
+static uint8_t caracterCorrecto(void) {
+	buffer[buffer_index] = '\0';
+	uint8_t codigo = atoi(buffer);
+	return ((char)codigo == palabra[posicion] && (((char)codigo >= 'A' && (char)codigo <= 'Z') || ((char)codigo >= 'a' && (char)codigo <= 'z')));
+}
+
+static void mostrarCaracterEnPantalla(void) {
+	LCDGotoXY(posicion, 0);
+	LCDsendChar(palabra[posicion]);
+	LCDGotoXY(posicion + 1, 0);  // Mover el cursor justo después del carácter mostrado
+	buffer_index = 0;
+}
+
+static void limpiarLineaInferior(void) {
+	LCDGotoXY(0,1);
+	LCDstring((uint8_t*)"     ", 5);
+	buffer_index = 0;
+	LCDGotoXY(posicion + 1, 0);
+}
+
+static void mostrarMensajeDerrota(void) {
+	LCDclr();
+	LCDGotoXY(0,0);
+	LCDstring((uint8_t*)"Derrota", 7);
+	Timer0_ResetContador();
+}
+
+static void mostrarMensajeVictoria(void) {
+	LCDclr();
+	LCDGotoXY(0,0);
+	LCDstring((uint8_t*)"Victoria", 8);
+	// Se podria mostrar el tiempo final
+	Timer0_ResetContador();
+}
+
+static uint8_t palabraCompleta(void) {
+	return (posicion >= PALABRA_LARGO - 1);
+}
+
+static void avanzarPosicion(void) {
+	posicion++;
+}
+
+static void incrementarErrores(void) {
+	errores++;
+}
+
+void MEF_Actualizar() {
+	char tecla;
+	
+	switch (estado_actual){
+		case INICIO:
+			if (KEYPAD_Scan((uint8_t*)&tecla) && tecla == '*') {
+				devolverPalabra();
+				mostrarPalabra();
+				Timer0_ResetContador();
+				estado_actual = MOSTRAR_CLAVE;
+			}
+			break;
+		case MOSTRAR_CLAVE:
+			if (Timer0_LeerContador() >= 200) {
+				LCDclr();
+				Timer0_ResetContador();
+				estado_actual = ESPERAR_CARACTER;
+			}
+			break;	
+		case ESPERAR_CARACTER:
+			if (KEYPAD_Scan((uint8_t*)&tecla)) {
+				if (tecla == '#') {
+					estado_actual = VALIDAR_CARACTER;
+				} else if (esDigito(tecla)) {
+					agregarAlBuffer(tecla);
+				}
+			}
+			break;
+		case VALIDAR_CARACTER:
+			if (caracterCorrecto()) {
+				mostrarCaracterEnPantalla();
+				if (palabraCompleta()) {
+					tiempoFinal = Timer0_LeerContador();
+					estado_actual = VICTORIA;
+				} else {
+					avanzarPosicion();
+					estado_actual = ESPERAR_CARACTER;
+				}
+			} else {
+				incrementarErrores();
+				if (errores >= MAX_ERRORES) {
+					estado_actual = DERROTA;
+				} else {
+					estado_actual = ERROR;
+					Timer0_ResetContador();
+				}
+			}
+			break;
+		case ERROR:
+			if (Timer0_LeerContador() >= 100) {
+				limpiarLineaInferior();
+				estado_actual = ESPERAR_CARACTER;
+			}
+			break;
+		case DERROTA:
+			if (Timer0_LeerContador() == 0) {  // Solo mostrar el mensaje al entrar al estado
+				mostrarMensajeDerrota();
+			}
+			if (Timer0_LeerContador() >= 5000) {
+				MEF_Inicializar();
+			}
+			break;
+		case VICTORIA:
+			mostrarMensajeVictoria();
+			if (Timer0_LeerContador() >= 5000) {
+				MEF_Inicializar();
+			}
+			break;
+		default:
+			// No se como llegarias aca
+			break;
+	}
 }
