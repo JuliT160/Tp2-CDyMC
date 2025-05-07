@@ -32,24 +32,43 @@ void KEYPAD_Init(void) {
 	}
 }
 
-uint8_t KEYPAD_Scan(uint8_t *key) {
+static uint8_t KeypadUpdate(void) {
 	for (uint8_t row = 0; row < 4; row++) {
 		// Poner todas las filas en 1
 		for (uint8_t i = 0; i < 4; i++)
-		*row_port_ports[i] |= row_ddr_masks[i];
+			*row_port_ports[i] |= row_ddr_masks[i];
 		// Bajar la fila activa
 		*row_port_ports[row] &= ~row_ddr_masks[row];
-		_delay_ms(5);
+		
 		// Leer columnas
 		for (uint8_t col = 0; col < 4; col++) {
 			if (!(*col_pin_ports[col] & col_ddr_masks[col])) {
-				*key = keymap[row][col];
-				_delay_ms(20);
-				// rebote
-				if (!(*col_pin_ports[col] & col_ddr_masks[col]))
-				return 1;
+				return (row * 4 + col);
 			}
 		}
 	}
+	return 0xFF; // No hay tecla presionada
+}
+
+uint8_t KEYPAD_Scan(uint8_t *key) {
+	static uint8_t Old_key = 0xFF, Last_valid_key = 0xFF;
+	uint8_t Key;
+	
+	Key = KeypadUpdate();
+	if (Key == 0xFF) {
+		Old_key = 0xFF;
+		Last_valid_key = 0xFF;
+		return 0;
+	}
+	
+	if (Key == Old_key) {
+		if (Key != Last_valid_key) {
+			*key = keymap[Key/4][Key%4];
+			Last_valid_key = Key;
+			return 1;
+		}
+	}
+	
+	Old_key = Key;
 	return 0;
 }
