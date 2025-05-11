@@ -20,6 +20,7 @@ static const char* palabra;
 static uint8_t buffer_index = 0;
 static uint8_t enPartida = 0;
 static uint16_t tiempoFinal = 0;
+static uint8_t mensajeError = 0;
 
 typedef enum {
 	INICIO,
@@ -43,7 +44,7 @@ void MEF_Inicializar(){
 	Timer0_ResetContador();
 	LCDclr();
 	LCDGotoXY(0,0);
-	LCDstring((uint8_t*)"RECORDAR CONTRA", 8);
+	LCDstring((uint8_t*)"RECORDAR PASS", 13);
 	LCDGotoXY(0,1);
 	LCDstring((uint8_t*)"Presiona *", 10);
 }
@@ -89,7 +90,7 @@ static void mostrarCaracterEnPantalla(void) {
 
 static void limpiarLineaInferior() {
 	LCDGotoXY(0,1);
-	LCDstring((uint8_t*)"     ", 5);
+	LCDstring((uint8_t*)"          ", 10);
 	buffer_index = 0;
 	LCDGotoXY(posicion, 0);
 	
@@ -98,6 +99,14 @@ static void limpiarLineaInferior() {
 static uint8_t palabraCompleta(void) {
 	return (posicion >= PALABRA_LARGO - 1);
 }
+
+static void mostrarMensajeError(void) {
+	LCDGotoXY(0,1);
+	char mensaje[16];
+	sprintf(mensaje, "Errores: %d", errores);
+	LCDstring((uint8_t*)mensaje, strlen(mensaje));
+}
+
 
 void MEF_Actualizar() {
 	char tecla;
@@ -151,13 +160,19 @@ void MEF_Actualizar() {
 					estado_actual = DERROTA;
 				} else {
 					estado_actual = ERROR;
+					mensajeError = 1;
 					Timer0_ResetContador();
 				}
 			}
 			limpiarLineaInferior();
 			break;
 		case ERROR:
-			if (Timer0_LeerContador() >= 100) {
+			if (mensajeError) {
+				mostrarMensajeError();
+				mensajeError = 0;
+				Timer0_ResetContador();
+			}
+			if (Timer0_LeerContador() >= 2000) {
 				limpiarLineaInferior();
 				posicion_actual = 0;
 				estado_actual = ESPERAR_CARACTER;
