@@ -15,7 +15,6 @@ extern const uint8_t ARR_SIZE;
 static uint8_t errores = 0;
 static uint8_t posicion = 0;
 static char buffer[4] = {0}; // para ascii (3 dígitos + null)
-//static char letra_actual;
 static const char* palabra;
 static uint8_t buffer_index = 0;
 static uint8_t enPartida = 0;
