@@ -9,17 +9,18 @@
 #define MAX_ERRORES 3
 #define PALABRA_LARGO 5
 
-extern const char* diccionario[];		// Extern declara una variable que se encuentra en otro archivo
+extern const char* diccionario[];	// Extern declara una variable que se encuentra en otro archivo
 extern const uint8_t ARR_SIZE;
 
 static uint8_t errores = 0;
 static uint8_t posicion = 0;
-static char buffer[4] = {0}; // para ascii (3 dígitos + null)
+static char buffer[4] = {0};		// para ascii (3 dígitos + null)
 static const char* palabra;
 static uint8_t buffer_index = 0;
 static uint8_t enPartida = 0;
 static uint16_t tiempoFinal = 0;
 static uint8_t mensajeError = 0;
+static uint16_t buffer_tiempo;		// Necesaria para no reiniciar el contador al mostrar mensajes en el juego
 
 typedef enum {
 	INICIO,
@@ -40,6 +41,7 @@ void MEF_Inicializar(){
 	posicion = 0;
 	buffer_index = 0;
 	enPartida = 1;
+	buffer_tiempo = 0;
 	Timer0_ResetContador();
 	LCDclr();
 	LCDGotoXY(0,0);
@@ -83,7 +85,7 @@ static uint8_t caracterCorrecto(void) {
 static void mostrarCaracterEnPantalla(void) {
 	LCDGotoXY(posicion, 0);
 	LCDsendChar(palabra[posicion]);
-	LCDGotoXY(posicion + 1, 0);  // Mover el cursor justo después del carácter mostrado
+	LCDGotoXY(posicion + 1, 0);  // Mover el cursor justo después del caracter mostrado anteriormente
 	buffer_index = 0;
 }
 
@@ -102,7 +104,7 @@ static uint8_t palabraCompleta(void) {
 static void mostrarMensajeError(void) {
 	LCDGotoXY(0,1);
 	char mensaje[16];
-	sprintf(mensaje, "Errores: %d", errores);
+	sprintf(mensaje, "Errores: %d", errores);		// Une el mensaje de error con la cantidad 
 	LCDstring((uint8_t*)mensaje, strlen(mensaje));
 }
 
@@ -160,7 +162,7 @@ void MEF_Actualizar() {
 				} else {
 					estado_actual = ERROR;
 					mensajeError = 1;
-					Timer0_ResetContador();
+					//Timer0_ResetContador();
 				}
 			}
 			limpiarLineaInferior();
@@ -169,9 +171,10 @@ void MEF_Actualizar() {
 			if (mensajeError) {
 				mostrarMensajeError();
 				mensajeError = 0;
-				Timer0_ResetContador();
+				//Timer0_ResetContador();
+				buffer_tiempo = Timer0_LeerContador();
 			}
-			if (Timer0_LeerContador() >= 2000) {
+			if (Timer0_LeerContador() - buffer_tiempo >= 2000) {
 				limpiarLineaInferior();
 				posicion_actual = 0;
 				estado_actual = ESPERAR_CARACTER;

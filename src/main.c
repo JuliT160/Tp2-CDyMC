@@ -28,12 +28,15 @@ int main(void) {
 	
 	KEYPAD_Init();
 	MEF_Inicializar();     
+	set_sleep_mode(SLEEP_MODE_IDLE);  // Configurar modo de bajo consumo
 
 	while (1) {
 		if (flag_tick) {
 			flag_tick = 0;
 			MEF_Actualizar();
+			sleep_mode();                      // Entrar en modo de bajo consumo
 		}
+		
 	}
 	
 }
